@@ -36,14 +36,23 @@ shared the road. The page as described above is the default and does not change.
 `huacheng`, `ayuan`, `shuaiba`) also brings up that rider's poster:
 https://g761007.github.io/fourward/?team
 
+### Link previews
+
+The head carries Open Graph tags, so a link pasted into Facebook, Messenger, LINE or any
+other service that reads them shows the title, a one-line description and `og.png`: the
+headline, three figures and the route coloured by the sky, at 1200 × 630. Every address of
+the page shows the same picture, `?team` ones included.
+
 `index.html` is the entire site: markup, styles, script and data in one file. It makes
-no network requests, so it also works offline when opened from disk.
+no network requests, so it also works offline when opened from disk. `og.png` is the only
+other published file; preview crawlers fetch it, the page itself never does.
 
 ## Repository contents
 
 | Path | Published | What it is |
 |---|---|---|
 | `index.html` | yes | The generated page |
+| `og.png` | yes | The picture shown in link previews |
 | `README.md` | yes | This file |
 | `tools/` | no (local only) | The generator, see below |
 | `fourward.fit` | no (never) | The raw recording: location and health data |
@@ -62,6 +71,9 @@ start versioning the generator.
   elsewhere, where it will look plainer.
 - **Building:** Python 3 with the standard library only. Developed with Python 3.14;
   older 3.x versions are untested.
+- **Redrawing `og.png`:** additionally Pillow, on macOS: the script loads Songti TC,
+  PingFang TC and the two DIN faces from the system font folders. Developed with
+  Pillow 12.2. Building the page does not need this, only the finished `og.png`.
 
 ## Installation
 
@@ -91,6 +103,7 @@ The generator needs `tools/` and a FIT file, which are not part of the public re
 ```bash
 python3 tools/build.py                      # reads fourward.fit, writes index.html
 python3 tools/build.py ride.fit out.html    # explicit input and output
+python3 tools/og.py                         # redraws og.png; run it before build.py
 ```
 
 Team mode is built when a `mates/` folder with the recordings named in `RIDERS` sits next
@@ -102,6 +115,7 @@ no switch. With it, the build takes about 13 seconds instead of 3.
 | `tools/build.py` | Decodes the ride, derives every number, assembles the page |
 | `tools/story.py` | The prose; every figure in it is computed, none is typed in |
 | `tools/team.py` | Reads the teammates' recordings and measures them against the owner's ride |
+| `tools/og.py` | Draws `og.png`, the link-preview picture, from the same data |
 | `tools/fit_decoder.py` | Dependency-free FIT decoder |
 | `tools/astro.py` | Sun and moon positions |
 | `tools/template.html`, `page.css`, `page.js` | Page source, inlined into `index.html` |
@@ -118,22 +132,33 @@ There is no separate test suite. The build checks itself and stops with an
 - every claim in the story is asserted against the data before it is written
   (for example "the big ring was never left" or "every heart-rate dropout fell in a rest");
 - each teammate's distance and work are compared with that head unit's own summary, and
-  the team story's claims (who waited where, who arrived together) are asserted the same way.
+  the team story's claims (who waited where, who arrived together) are asserted the same way;
+- the size the head declares for the preview picture is compared with the size `og.png` has.
 
 ## Deployment
 
-GitHub Pages serves `index.html` from the root of the `main` branch. To update the
-live page, rebuild and push:
+GitHub Pages serves `index.html` and `og.png` from the root of the `main` branch. To
+update the live page, rebuild and push:
 
 ```bash
 python3 tools/build.py
-git add index.html
+git add index.html og.png
 git commit -m "Rebuild page"
 git push
 ```
 
 The page carries `<meta name="robots" content="noindex">`: it is public to anyone with
 the link but asks search engines not to list it.
+
+Facebook keeps the preview of an address it has already seen. After changing the title,
+the description or the picture, put the address into the
+[Sharing Debugger](https://developers.facebook.com/tools/debug/) and have it fetch the
+page again. Two details in the head exist for this:
+
+- The picture's address ends in `?v=` and a digest of the file, written by the build,
+  because Facebook caches a picture by its address and would keep showing the old one.
+- There is no `og:url`. It names one canonical address for the page, and the `?team`
+  links are meant to stay distinct when shared.
 
 ## Troubleshooting
 
@@ -150,6 +175,10 @@ the link but asks search engines not to list it.
   page in a normal browser tab.
 - **The live page still shows the old version.** GitHub Pages can take a minute to
   deploy; reload without cache.
+- **A shared link shows no picture, or an old one.** The service fetched the page before
+  the change and cached what it found; see the Sharing Debugger note under Deployment.
+- **`FileNotFoundError` for `og.png`.** The build reads the preview picture. Restore it
+  from git or redraw it with `python3 tools/og.py`.
 
 ## Data and method notes
 
