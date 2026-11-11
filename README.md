@@ -17,6 +17,25 @@ recording and is written in Traditional Chinese.
   and a physics estimate of how much wind and drafting helped.
 - It ends with a poster drawn from the ride data that can be saved as a PNG.
 
+### Team mode
+
+A switch in the bottom-right corner turns on team mode, which adds the four riders who
+shared the road. The page as described above is the default and does not change.
+
+- The replay map shows a teammate's own marker whenever that rider is more than 150 m
+  from the owner for three minutes or longer, and a read-out under the map gives each
+  teammate's state (together, or how far ahead or behind) with speed, heart rate and power.
+- The story gains the moments the group changed: a rider going ahead alone, the regroup,
+  the companion leaving, the split, the finish.
+- A section after the wind estimate charts each rider's distance ahead of or behind the
+  owner, compares power, heart rate and cadence while all five rode in one bunch, and
+  shows how each rider's effort changed over the ride.
+- The poster can be switched to any rider's own version and downloaded.
+
+`?team` in the address opens the page in team mode, and `?team=<rider>` (`kai`,
+`huacheng`, `ayuan`, `shuaiba`) also brings up that rider's poster:
+https://g761007.github.io/fourward/?team
+
 `index.html` is the entire site: markup, styles, script and data in one file. It makes
 no network requests, so it also works offline when opened from disk.
 
@@ -28,8 +47,9 @@ no network requests, so it also works offline when opened from disk.
 | `README.md` | yes | This file |
 | `tools/` | no (local only) | The generator, see below |
 | `fourward.fit` | no (never) | The raw recording: location and health data |
+| `mates/*.fit` | no (never) | The teammates' raw recordings, needed only for team mode |
 
-`tools/` and the FIT file are listed in `.gitignore`. Remove the `tools/` line there to
+`tools/` and every FIT file are listed in `.gitignore`. Remove the `tools/` line there to
 start versioning the generator.
 
 ## Requirements
@@ -58,6 +78,12 @@ the top of `tools/build.py`:
 - `MOVING_KMH`: the speed below which the wheels count as stopped
 - `EAST_COAST`: a hand-drawn outline used only as map context
 
+Team mode is configured at the top of `tools/team.py`:
+
+- `RIDERS`: each teammate's key, name on the page, recording in `mates/` and colour
+- `NEAR`, `APART`: how far and for how long a rider must be away to count as apart
+- `BUNCH`: how close two riders must be for their effort to be compared
+
 ## Development
 
 The generator needs `tools/` and a FIT file, which are not part of the public repository.
@@ -67,10 +93,15 @@ python3 tools/build.py                      # reads fourward.fit, writes index.h
 python3 tools/build.py ride.fit out.html    # explicit input and output
 ```
 
+Team mode is built when a `mates/` folder with the recordings named in `RIDERS` sits next
+to `fourward.fit`. Without that folder the build produces the page with no team mode and
+no switch. With it, the build takes about 13 seconds instead of 3.
+
 | File | Role |
 |---|---|
 | `tools/build.py` | Decodes the ride, derives every number, assembles the page |
 | `tools/story.py` | The prose; every figure in it is computed, none is typed in |
+| `tools/team.py` | Reads the teammates' recordings and measures them against the owner's ride |
 | `tools/fit_decoder.py` | Dependency-free FIT decoder |
 | `tools/astro.py` | Sun and moon positions |
 | `tools/template.html`, `page.css`, `page.js` | Page source, inlined into `index.html` |
@@ -85,7 +116,9 @@ There is no separate test suite. The build checks itself and stops with an
 - per-second sums are compared with the head unit's own session summary
   (distance, pedal revolutions, work, normalized power);
 - every claim in the story is asserted against the data before it is written
-  (for example "the big ring was never left" or "every heart-rate dropout fell in a rest").
+  (for example "the big ring was never left" or "every heart-rate dropout fell in a rest");
+- each teammate's distance and work are compared with that head unit's own summary, and
+  the team story's claims (who waited where, who arrived together) are asserted the same way.
 
 ## Deployment
 
@@ -109,6 +142,8 @@ the link but asks search engines not to list it.
   until they are adapted.
 - **`no long stop near km …`.** A station in `STATIONS` no longer matches a stop of
   three minutes or more in the recording.
+- **`FileNotFoundError` for a file in `mates/`.** The folder exists but a recording named
+  in `RIDERS` is missing. Add the file, or remove the folder to build without team mode.
 - **The page looks different on Windows or Android.** The Apple system fonts are
   missing and the fallbacks are used.
 - **The poster does not download.** Some embedded previews block downloads; open the
@@ -127,3 +162,12 @@ the link but asks search engines not to list it.
   recorded. Its assumptions and the range they produce are stated on the page.
 - The route on the maps is the real GPS track. The east coast outline is a sketch.
 - Place names for moments that are not stations were identified from coordinates.
+- Teammates are placed on the owner's clock and road: times are wall-clock times, and
+  "route km" is the owner's odometer at that place. Two of the four head units are a
+  different brand and three of them auto-pause, so their recordings have no data during
+  rests.
+- Who rides in front inside the bunch cannot be read from these files: the offset between
+  two riders is one to three seconds and behaves like a clock difference between head
+  units. The page therefore shows only separations of 150 m or more and never says who led.
+- Each rider's FTP and maximum heart-rate settings are ignored; effort is compared in
+  watts, beats per minute and cadence.
