@@ -1,0 +1,7 @@
+# Raw activity recording: location and health data, never published
+*.fit
+
+# The generator is kept local; remove this line to start versioning it
+tools/
+
+.DS_Store
